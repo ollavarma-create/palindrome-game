@@ -1,0 +1,7 @@
+PyQt6
+nltk>=3.10.4
+matplotlib
+appdirs
+requests>=2.33.0
+openai
+pandas
