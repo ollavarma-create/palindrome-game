@@ -41,29 +41,11 @@ jobs:
           python-version: '3.12'
       - name: Install dependencies
         run: |
-          pip install nuitka pyqt6 matplotlib nltk pandas requests appdirs
-      - name: Download dependency walker manually
-        shell: powershell
-        run: |
-          $dependsUrl = "https://dependencywalker.com/depends22_x64.zip"
-          $downloadPath = "depends22_x64.zip"
-          $extractPath = "C:\Users\runneradmin\AppData\Local\Nuitka\Nuitka\Cache\downloads\depends\x86_64"
-          
-          # Create directories if they don't exist
-          New-Item -Path $extractPath -ItemType Directory -Force
-          
-          # Download the file
-          Invoke-WebRequest -Uri $dependsUrl -OutFile $downloadPath
-          
-          # Extract the archive
-          Expand-Archive -Path $downloadPath -DestinationPath $extractPath -Force
-          
-          # Verify files were extracted
-          Get-ChildItem -Path $extractPath
+          pip install nuitka==4.3.5 pyqt6 matplotlib nltk pandas requests appdirs
       - name: Build with Nuitka
         shell: cmd
         run: |
-          python -m nuitka PalindromeGame.py --include-data-files=palindromes.json=palindromes.json --standalone --onefile --follow-imports --enable-plugin=pyqt6 --output-dir=build --windows-console-mode=disable --assume-yes-for-downloads
+          python -m nuitka PalindromeGame.py --include-data-files=palindromes.json=palindromes.json --standalone --onefile --follow-imports --enable-plugin=pyqt6 --output-dir=build --windows-console-mode=disable --experimental=force-dependencies-pefile --msvc=latest < NUL
       - name: Upload .exe as artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -105,7 +87,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y patchelf desktop-file-utils libgirepository1.0-dev libfuse2 imagemagick libfreetype6-dev libpng-dev libqt6core6 libqt6gui6 libqt6widgets6
-          pip install nuitka pyqt6 matplotlib nltk pandas requests appdirs
+          pip install nuitka==4.3.5 pyqt6 matplotlib nltk pandas requests appdirs
           pip list | grep -E "nuitka|pyqt6|matplotlib|nltk|pandas|requests|appdirs"
       - name: Download NLTK data
         run: |
@@ -121,8 +103,7 @@ jobs:
             --follow-imports \
             --enable-plugin=pyqt6 \
             --output-dir=build \
-            --assume-yes-for-downloads \
-            --include-module=appdirs,matplotlib,nltk
+            --include-module=appdirs,matplotlib,nltk </dev/null
       - name: Verify build output
         run: |
           ls -la build/
