@@ -4,8 +4,13 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches: [main]
   release:
     types: [created]
+
+permissions:
+  contents: read
 
 jobs:
   build-windows:
@@ -13,6 +18,8 @@ jobs:
     steps:
       - name: Check out the repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Verify file path
         run: |
           Get-ChildItem -Recurse
@@ -62,17 +69,13 @@ jobs:
         with:
           name: PalindromeGame-Windows
           path: build/PalindromeGame.exe
-      - name: Upload to GitHub Release
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
-        with:
-          files: build/PalindromeGame.exe
-
   build-linux:
     runs-on: ubuntu-22.04
     steps:
       - name: Check out the repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Verify file path
         run: |
           find .
@@ -160,8 +163,32 @@ jobs:
         with:
           name: PalindromeGame-Linux
           path: PalindromeGame-x86_64.AppImage
+
+  publish-release:
+    if: github.event_name == 'release'
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: PalindromeGame-Windows
+          path: release/windows
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: PalindromeGame-Linux
+          path: release/linux
+
       - name: Upload to GitHub Release
-        if: github.event_name == 'release'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          files: PalindromeGame-x86_64.AppImage
+          fail_on_unmatched_files: true
+          files: |
+            release/windows/PalindromeGame.exe
+            release/linux/PalindromeGame-x86_64.AppImage
