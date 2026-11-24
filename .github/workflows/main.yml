@@ -126,11 +126,34 @@ jobs:
       - name: Verify build output
         run: |
           ls -la build/
-      - name: Download and extract appimagetool
+      - name: Install verified AppImage packaging tools
         run: |
-          wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x appimagetool-x86_64.AppImage
-          ./appimagetool-x86_64.AppImage --appimage-extract
+          set -euo pipefail
+
+          TOOL_VERSION="1.9.1"
+          TOOL_SHA256="ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
+
+          RUNTIME_VERSION="20251108"
+          RUNTIME_SHA256="2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d"
+
+          curl --fail --location --retry 3 \
+            "https://github.com/AppImage/appimagetool/releases/download/${TOOL_VERSION}/appimagetool-x86_64.AppImage" \
+            -o /tmp/appimagetool.AppImage
+
+          printf '%s  %s\n' "$TOOL_SHA256" /tmp/appimagetool.AppImage | sha256sum -c -
+
+          curl --fail --location --retry 3 \
+            "https://github.com/AppImage/type2-runtime/releases/download/${RUNTIME_VERSION}/runtime-x86_64" \
+            -o /tmp/appimage-runtime-x86_64
+
+          printf '%s  %s\n' "$RUNTIME_SHA256" /tmp/appimage-runtime-x86_64 | sha256sum -c -
+
+          chmod +x /tmp/appimagetool.AppImage
+          (cd /tmp && /tmp/appimagetool.AppImage --appimage-extract >/dev/null)
+
+          sudo install -m 0755 /tmp/squashfs-root/usr/bin/appimagetool /usr/local/bin/appimagetool
+
+          echo "APPIMAGE_RUNTIME_FILE=/tmp/appimage-runtime-x86_64" >> "$GITHUB_ENV"
       - name: Create AppDir structure
         run: |
           mkdir -p AppDir/usr/bin
@@ -155,9 +178,19 @@ jobs:
           EOF
           cp assets/palindromegame.png AppDir/palindromegame.png
           find AppDir -type f | sort
-      - name: Create AppImage using extracted appimagetool
+      - name: Build AppImage
         run: |
-          ./squashfs-root/AppRun AppDir PalindromeGame-x86_64.AppImage || exit 1
+          set -euo pipefail
+
+          : "${APPIMAGE_RUNTIME_FILE:?Verified runtime is required}"
+          test -s "$APPIMAGE_RUNTIME_FILE"
+
+          ARCH=x86_64 appimagetool \
+            --runtime-file "$APPIMAGE_RUNTIME_FILE" \
+            AppDir PalindromeGame-x86_64.AppImage
+
+          test -s PalindromeGame-x86_64.AppImage
+          chmod +x PalindromeGame-x86_64.AppImage
       - name: Upload AppImage as artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
